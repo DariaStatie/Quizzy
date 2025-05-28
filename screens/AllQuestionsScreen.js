@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'; 
 import {
   View,
   Text,
@@ -8,10 +8,13 @@ import {
   ActivityIndicator,
   Alert,
   SafeAreaView,
+  StatusBar,
+  Platform,
 } from 'react-native';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { getFirestore, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
+
+const db = getFirestore();
 
 export default function AllQuestionsScreen() {
   const [questions, setQuestions] = useState([]);
@@ -38,7 +41,7 @@ export default function AllQuestionsScreen() {
     return unsubscribe;
   }, [navigation]);
 
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
     Alert.alert('Confirmare', 'Sigur vrei să ștergi această întrebare?', [
       { text: 'Anulează', style: 'cancel' },
       {
@@ -47,7 +50,7 @@ export default function AllQuestionsScreen() {
         onPress: async () => {
           try {
             await deleteDoc(doc(db, 'questions', id));
-            fetchQuestions(); // Refresh după ștergere
+            setQuestions(prev => prev.filter(q => q.id !== id));
           } catch (error) {
             Alert.alert('Eroare la ștergere', error.message);
           }
@@ -90,31 +93,37 @@ export default function AllQuestionsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-        <Text style={styles.backText}>← Înapoi</Text>
-      </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backText}>← Înapoi</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.title}>Toate întrebările</Text>
+        <Text style={styles.title}>Toate întrebările</Text>
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#9333ea" />
-      ) : (
-        <FlatList
-          data={questions}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      )}
+        {loading ? (
+          <ActivityIndicator size="large" color="#9333ea" />
+        ) : (
+          <FlatList
+            data={questions}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          />
+        )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#f8f1ff',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  container: {
+    flex: 1,
     paddingHorizontal: 20,
   },
   backButton: {

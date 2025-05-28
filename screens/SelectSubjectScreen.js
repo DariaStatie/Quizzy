@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
@@ -21,46 +22,51 @@ export default function SelectSubjectScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backText}>← Înapoi</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.title}>Alege materia:</Text>
-
-      {subjects.map((subject, index) => (
-        <TouchableOpacity
-          key={index}
-          style={[
-            styles.subjectButton,
-            selectedSubject === subject && styles.selectedButton,
-          ]}
-          onPress={() => setSelectedSubject(subject)}
-        >
-          <Text style={styles.subjectText}>{subject}</Text>
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backText}>← Înapoi</Text>
         </TouchableOpacity>
-      ))}
 
-      <TouchableOpacity
-        style={[
-          styles.continueButton,
-          !selectedSubject && { backgroundColor: '#ccc' },
-        ]}
-        onPress={handleContinue}
-        disabled={!selectedSubject}
-      >
-        <Text style={styles.continueText}>Continuă</Text>
-      </TouchableOpacity>
+        <Text style={styles.title}>Alege materia:</Text>
+
+        {subjects.map((subject, index) => (
+          <TouchableOpacity
+            key={index}
+            style={[
+              styles.subjectButton,
+              selectedSubject === subject && styles.selectedButton,
+            ]}
+            onPress={() => setSelectedSubject(subject)}
+          >
+            <Text style={styles.subjectText}>{subject}</Text>
+          </TouchableOpacity>
+        ))}
+
+        <TouchableOpacity
+          style={[
+            styles.continueButton,
+            !selectedSubject && styles.disabledButton,
+          ]}
+          onPress={handleContinue}
+          disabled={!selectedSubject}
+        >
+          <Text style={styles.continueText}>Continuă</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
     backgroundColor: '#f8f1ff',
-    paddingHorizontal: 20,
-    paddingTop: 20,
+  },
+  container: {
+    padding: 20,
+    paddingBottom: 40,
+    flexGrow: 1,
   },
   backButton: {
     marginBottom: 10,
@@ -97,11 +103,14 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: 'auto',
+    marginTop: 30,
   },
   continueText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
 });

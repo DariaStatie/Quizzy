@@ -29,6 +29,9 @@ export default function IncorrectAnswersScreen() {
           <View key={idx} style={styles.card}>
             <Text style={styles.qtext}>❌ {item.question}</Text>
             <Text style={styles.ctext}>✅ Răspuns corect: {item.correctAnswer}</Text>
+            {item.timedOut && (
+              <Text style={styles.timeout}>⏱ Timpul a expirat</Text>
+            )}
           </View>
         ))}
       </ScrollView>
@@ -75,5 +78,11 @@ const styles = StyleSheet.create({
   ctext: {
     color: '#16a34a',
     fontSize: 15,
+  },
+  timeout: {
+    color: '#f59e0b',
+    marginTop: 4,
+    fontSize: 14,
+    fontStyle: 'italic',
   },
 });

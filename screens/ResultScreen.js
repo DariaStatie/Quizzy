@@ -28,8 +28,8 @@ export default function ResultScreen() {
           timestamp: serverTimestamp(),
           incorrectQuestions: incorrectAnswers.map(q => ({
             question: q.question,
-            correctAnswer: q.options[q.correctAnswer],
-            options: q.options,
+            correctAnswer: q.correctAnswer,
+            timedOut: !!q.timedOut,
           })),
         });
       } catch (error) {
@@ -46,15 +46,18 @@ export default function ResultScreen() {
       <Text style={styles.scoreText}>Scorul tău: {score} / {total}</Text>
 
       {incorrectAnswers.length > 0 && (
-        <>
+        <View style={styles.incorrectSection}>
           <Text style={styles.subtitle}>Întrebări greșite:</Text>
           {incorrectAnswers.map((q, idx) => (
             <View key={idx} style={styles.wrongBox}>
               <Text style={styles.qtext}>❌ {q.question}</Text>
-              <Text style={styles.ctext}>✅ Răspuns: {q.options[q.correctAnswer]}</Text>
+              <Text style={styles.ctext}>✅ Răspuns corect: {q.correctAnswer}</Text>
+              {q.timedOut && (
+                <Text style={styles.timeoutNote}>⏱ Timpul a expirat</Text>
+              )}
             </View>
           ))}
-        </>
+        </View>
       )}
 
       <TouchableOpacity
@@ -70,6 +73,7 @@ export default function ResultScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
+    paddingTop: 80, 
     paddingBottom: 50,
     backgroundColor: '#f8f1ff',
     alignItems: 'center',
@@ -83,14 +87,18 @@ const styles = StyleSheet.create({
   },
   scoreText: {
     fontSize: 22,
-    marginBottom: 30,
     color: '#111827',
+    textAlign: 'center',
+    marginBottom: 50, 
+  },
+  incorrectSection: {
+    width: '100%',
+    marginBottom: 20,
   },
   subtitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
-    alignSelf: 'flex-start',
     color: '#7c3aed',
   },
   wrongBox: {
@@ -109,6 +117,11 @@ const styles = StyleSheet.create({
   },
   ctext: {
     color: '#16a34a',
+  },
+  timeoutNote: {
+    color: '#ea580c',
+    marginTop: 5,
+    fontStyle: 'italic',
   },
   button: {
     marginTop: 30,

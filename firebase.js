@@ -1,9 +1,8 @@
 // firebase.js
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore'; 
 
-// Configurația aplicației tale Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyA9q5ygrlwWbX5pFVM6jVJGeSqw4uUdpGI",
   authDomain: "quizzy-e3f25.firebaseapp.com",
@@ -14,12 +13,11 @@ const firebaseConfig = {
   measurementId: "G-YPN5HFC4BX"
 };
 
-// Inițializarea aplicației Firebase
-const app = initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
-// Inițializarea serviciilor Firebase
-const auth = getAuth(app);
-const db = getFirestore(app);
+const auth = firebase.auth();
+const db = firebase.firestore(); 
 
-// Exportăm instanțele
-export { auth, db };
+export { auth, db }; 

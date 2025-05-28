@@ -55,7 +55,12 @@ export default function QuizScreen() {
       setTimeLeft(prev => {
         if (prev === 1) {
           clearInterval(timerRef.current);
-          handleNext();
+          const timedOutQuestion = {
+            ...questions[current],
+            correctAnswer: questions[current].options[questions[current].correctAnswer],
+            timedOut: true,
+          };
+          setTimeout(() => handleNext(timedOutQuestion, score), 0);
           return 30;
         }
         return prev - 1;
@@ -72,15 +77,25 @@ export default function QuizScreen() {
     setSelected(index);
 
     const isCorrect = index === questions[current].correctAnswer;
-    if (isCorrect) {
-      setScore(prev => prev + 1);
-    }
 
     clearInterval(timerRef.current);
-    setTimeout(() => handleNext(isCorrect ? null : questions[current]), 1500);
+
+    const currentQuestion = {
+      ...questions[current],
+      correctAnswer: questions[current].options[questions[current].correctAnswer],
+      timedOut: false,
+    };
+
+    if (isCorrect) {
+      const newScore = score + 1;
+      setScore(newScore);
+      setTimeout(() => handleNext(null, newScore), 1500);
+    } else {
+      setTimeout(() => handleNext(currentQuestion, score), 1500);
+    }
   };
 
-  const handleNext = (lastIncorrect = null) => {
+  const handleNext = (lastIncorrect = null, latestScore = score) => {
     setSelected(null);
     setTimeLeft(30);
 
@@ -92,7 +107,7 @@ export default function QuizScreen() {
       setCurrent(current + 1);
     } else {
       navigation.replace('ResultScreen', {
-        score,
+        score: latestScore,
         total: questions.length,
         incorrectAnswers: lastIncorrect
           ? [...incorrectAnswers, lastIncorrect]
@@ -112,6 +127,9 @@ export default function QuizScreen() {
   if (questions.length === 0) {
     return (
       <View style={styles.centered}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backContainer}>
+          <Text style={styles.backText}>← Înapoi</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>Nu există întrebări pentru această selecție.</Text>
       </View>
     );
@@ -152,9 +170,17 @@ const styles = StyleSheet.create({
   centered: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
     backgroundColor: '#f8f1ff',
+  },
+  backContainer: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+  },
+  backText: {
+    fontSize: 16,
+    color: '#9333ea',
   },
   question: {
     fontSize: 20,
@@ -193,5 +219,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#6b21a8',
     textAlign: 'center',
+    marginTop: 100,
   },
 });

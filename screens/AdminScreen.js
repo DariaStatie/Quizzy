@@ -9,7 +9,7 @@ export default function AdminScreen() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await auth.signOut();
       navigation.replace('Login');
     } catch (error) {
       alert('Eroare la delogare: ' + error.message);

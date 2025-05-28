@@ -7,7 +7,9 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
-  SafeAreaView
+  SafeAreaView,
+  StatusBar,
+  Platform
 } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -47,7 +49,8 @@ export default function EditQuestionScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f1ff' }}>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f1ff" />
       <ScrollView contentContainerStyle={styles.container}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backText}>← Înapoi</Text>
@@ -107,6 +110,11 @@ export default function EditQuestionScreen() {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8f1ff',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   container: {
     padding: 20,
     paddingBottom: 100,

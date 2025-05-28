@@ -5,8 +5,11 @@ import { auth } from '../firebase';
 
 export default function HomeScreen({ navigation }) {
   const handleLogout = async () => {
-    await signOut(auth);
-    navigation.replace('Login');
+    await auth.signOut();
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Start' }],
+    });
   };
 
   return (
@@ -31,7 +34,7 @@ export default function HomeScreen({ navigation }) {
         style={[styles.button, styles.logoutButton]}
         onPress={handleLogout}
       >
-        <Text style={styles.buttonText}>🔒 Delogare </Text>
+        <Text style={styles.buttonText}>🔒 Delogare</Text>
       </TouchableOpacity>
     </View>
   );

@@ -5,12 +5,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ImageBackground,
 } from 'react-native';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import { auth } from '../firebase';
+import Toast from 'react-native-toast-message';
 
 export default function SignupScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -18,7 +18,6 @@ export default function SignupScreen({ navigation }) {
 
   const db = getFirestore();
 
-  // Reguli pentru parolă
   const checks = {
     minLength: password.length >= 8,
     hasNumber: /\d/.test(password),
@@ -31,10 +30,11 @@ export default function SignupScreen({ navigation }) {
 
   const handleSignup = async () => {
     if (!isValidPassword()) {
-      Alert.alert(
-        'Parolă slabă',
-        'Parola trebuie să aibă minim 8 caractere, o cifră și un caracter special.'
-      );
+      Toast.show({
+        type: 'error',
+        text1: 'Parolă slabă',
+        text2: 'Parola trebuie să aibă minim 8 caractere, o cifră și un caracter special.',
+      });
       return;
     }
 
@@ -42,19 +42,32 @@ export default function SignupScreen({ navigation }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Creează document Firestore cu rol implicit "user"
       await setDoc(doc(db, 'users', user.uid), {
-           email: user.email,
-           role: 'user',
-           createdAt: new Date().toISOString(),
+        email: user.email,
+        role: 'user',
+        createdAt: new Date().toISOString(),
       });
 
       await sendEmailVerification(user);
-      Alert.alert('Cont creat!', 'Verifică adresa de email pentru a confirma contul.');
+      Toast.show({
+        type: 'success',
+        text1: 'Cont creat',
+        text2: 'Verifică adresa de email pentru a confirma contul.',
+      });
       navigation.navigate('Login');
     } catch (error) {
-      console.error(error);
-      Alert.alert('Eroare la creare cont', error.message);
+      let message = 'Eroare la creare cont';
+      if (error.code === 'auth/email-already-in-use') {
+        message = 'Adresa de email este deja folosită.';
+      } else if (error.code === 'auth/invalid-email') {
+        message = 'Adresa de email nu este validă.';
+      }
+
+      Toast.show({
+        type: 'error',
+        text1: 'Eroare la creare cont',
+        text2: message,
+      });
     }
   };
 
@@ -83,17 +96,10 @@ export default function SignupScreen({ navigation }) {
           onChangeText={setPassword}
         />
 
-        {/* Cerințe parolă dinamice */}
         <View style={styles.passwordRequirements}>
-          <Text style={[styles.requirement, { color: checks.minLength ? 'green' : 'red' }]}>
-            • minim 8 caractere
-          </Text>
-          <Text style={[styles.requirement, { color: checks.hasNumber ? 'green' : 'red' }]}>
-            • cel puțin o cifră
-          </Text>
-          <Text style={[styles.requirement, { color: checks.hasSpecial ? 'green' : 'red' }]}>
-            • un caracter special (!@#$%^&* etc.)
-          </Text>
+          <Text style={[styles.requirement, { color: checks.minLength ? 'green' : 'red' }]}>• minim 8 caractere</Text>
+          <Text style={[styles.requirement, { color: checks.hasNumber ? 'green' : 'red' }]}>• cel puțin o cifră</Text>
+          <Text style={[styles.requirement, { color: checks.hasSpecial ? 'green' : 'red' }]}>• un caracter special (!@#$%^&* etc.)</Text>
         </View>
 
         <TouchableOpacity style={styles.button} onPress={handleSignup}>

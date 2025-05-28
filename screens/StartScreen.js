@@ -1,12 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ImageBackground } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 export default function StartScreen({ navigation }) {
   return (
-    <ImageBackground
-      source={require('../assets/start-bg.jpg')} // imaginea de fundal (poate fi și simplă, gen gradient)
-      style={styles.background}
-    >
+    <View style={styles.background}>
       <View style={styles.container}>
         <Text style={styles.title}>Quizzy</Text>
         <Text style={styles.subtitle}>Testează-ți cunoștințele și distrează-te!</Text>
@@ -22,21 +19,21 @@ export default function StartScreen({ navigation }) {
           <Text style={styles.buttonText}>Creare cont</Text>
         </TouchableOpacity>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    resizeMode: 'cover',
+    backgroundColor: '#f3e8ff', 
   },
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 30,
-    backgroundColor: 'rgba(255,255,255,0.6)', // semitransparent peste fundal
+    backgroundColor: 'rgba(255,255,255,0.6)',
   },
   title: {
     fontSize: 48,
@@ -66,5 +63,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
+  },
 });

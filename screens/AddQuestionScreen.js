@@ -7,7 +7,9 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
-  SafeAreaView
+  SafeAreaView,
+  Platform,
+  StatusBar
 } from 'react-native';
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -43,7 +45,7 @@ export default function AddQuestionScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f1ff' }}>
+    <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backText}>← Înapoi</Text>
@@ -103,6 +105,11 @@ export default function AddQuestionScreen() {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8f1ff',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   container: {
     padding: 20,
     paddingBottom: 100,

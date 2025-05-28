@@ -15,9 +15,15 @@ export default function SelectDifficultyScreen() {
 
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
 
+  // Funcție pentru eliminarea diacriticelor
+  const normalize = (text) => {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, '');
+  };
+
   const handleContinue = () => {
     if (selectedDifficulty) {
-      navigation.navigate('Quiz', { subject, difficulty: selectedDifficulty });
+      const safeDifficulty = normalize(selectedDifficulty);
+      navigation.navigate('Quiz', { subject, difficulty: safeDifficulty });
     }
   };
 

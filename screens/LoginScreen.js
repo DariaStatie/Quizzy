@@ -1,75 +1,61 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ImageBackground,
+  Modal,
+  Alert,
 } from 'react-native';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import {
-  registerForPushNotificationsAsync,
-  sendPushNotification,
-} from '../lib/notifications';
+import { auth } from '../firebase';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [expoPushToken, setExpoPushToken] = useState(null);
+  const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [customError, setCustomError] = useState('');
 
   const db = getFirestore();
 
-  useEffect(() => {
-    // obține tokenul la montarea ecranului
-    registerForPushNotificationsAsync().then(token => {
-      if (token) setExpoPushToken(token);
-    });
-  }, []);
-
   const handleLogin = async () => {
-    console.log('🔐 Autentificare cu:', email);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      if (!user.emailVerified) {
-        console.log('⚠️ Email neverificat! Trimit notificare...');
-        if (expoPushToken) {
-          await sendPushNotification(
-            expoPushToken,
-            'Email neverificat',
-            'Te rugăm să îți confirmi adresa de email pentru a continua.'
-          );
-        }
-
-        Alert.alert(
-          'Email neverificat',
-          'Te rugăm să îți confirmi adresa de email pentru a continua.'
-        );
-        return;
-      }
-
       const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (!userDoc.exists()) {
-        Alert.alert('Eroare', 'Utilizatorul nu există în baza de date.');
-        return;
-      }
+      const userData = userDoc.data();
 
-      const role = userDoc.data().role;
-      console.log('🎭 Rol detectat:', role);
-
-      if (role === 'admin') {
-        navigation.navigate('Admin');
+      if (userData?.role === 'admin') {
+        navigation.replace('Admin');
       } else {
-        navigation.navigate('Home');
+        navigation.replace('Home');
       }
     } catch (error) {
-      console.log('❌ Eroare la autentificare:', error.message);
-      Alert.alert('Eroare la autentificare', error.message);
+      if (error.code === 'auth/email-already-in-use') {
+        setCustomError('Adresa de email este deja folosită.');
+      } else if (error.code === 'auth/invalid-email') {
+        setCustomError('Adresa de email nu este validă.');
+      } else if (error.code === 'auth/wrong-password') {
+        setCustomError('Parolă incorectă.');
+      } else {
+        setCustomError('Eroare la autentificare.');
+      }
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      Alert.alert('Email trimis', 'Verifică adresa de email pentru a reseta parola.');
+      setResetModalVisible(false);
+      setResetEmail('');
+    } catch (error) {
+      Alert.alert('Eroare', 'Email invalid sau cont inexistent.');
     }
   };
 
@@ -80,6 +66,10 @@ export default function LoginScreen({ navigation }) {
     >
       <View style={styles.container}>
         <Text style={styles.title}>Autentificare</Text>
+
+        {customError !== '' && (
+          <Text style={styles.errorBox}>{customError}</Text>
+        )}
 
         <TextInput
           style={styles.input}
@@ -105,6 +95,31 @@ export default function LoginScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
           <Text style={styles.link}>Nu ai cont? Creează unul</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setResetModalVisible(true)}>
+          <Text style={styles.forgotText}>Ai uitat parola?</Text>
+        </TouchableOpacity>
+
+        <Modal visible={resetModalVisible} transparent animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Resetare parolă</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Introdu emailul tău"
+                placeholderTextColor="#aaa"
+                value={resetEmail}
+                onChangeText={setResetEmail}
+              />
+              <TouchableOpacity style={styles.modalButton} onPress={handlePasswordReset}>
+                <Text style={styles.buttonText}>Trimite email</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setResetModalVisible(false)}>
+                <Text style={styles.link}>Renunță</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </View>
     </ImageBackground>
   );
@@ -151,5 +166,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6b21a8',
     textDecorationLine: 'underline',
+    marginTop: 10,
+  },
+  forgotText: {
+    textAlign: 'center',
+    marginTop: 10,
+    fontStyle: 'italic',
+    color: '#7c3aed',
+  },
+  errorBox: {
+    backgroundColor: '#fee2e2',
+    color: '#b91c1c',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    margin: 20,
+    borderRadius: 10,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#6b21a8',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalButton: {
+    backgroundColor: '#6d28d9',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
   },
 });
