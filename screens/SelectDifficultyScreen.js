@@ -21,8 +21,8 @@ export default function SelectDifficultyScreen() {
   const normalize = (text) =>
     text.normalize("NFD").replace(/[\u0300-\u036f]/g, '');
 
+  // 👇 Așteaptă semnalul de la server pentru START QUIZ
   useEffect(() => {
-    // 🔁 Așteaptă semnalul de start de la server (cu întrebări sincronizate)
     socket.on('start_quiz', ({ subject, difficulty, questions }) => {
       navigation.replace('Quiz', {
         subject,
@@ -43,19 +43,20 @@ export default function SelectDifficultyScreen() {
 
     const safeDifficulty = normalize(selectedDifficulty);
 
-    // 1. Trimite setările
+    // 1. Trimite setările către server
     socket.emit('set_quiz_settings', {
       roomId,
       subject,
       difficulty: safeDifficulty,
     });
 
-    // 2. Verifică dacă ești host
+    // 2. Întreabă dacă utilizatorul este host
     socket.emit('who_is_host', roomId, async (isHost) => {
       if (isHost) {
         const questions = await fetchQuestions(subject, safeDifficulty);
         socket.emit('set_questions', { roomId, questions });
       }
+      // ❗ Nu navigăm spre Quiz aici – așteptăm evenimentul 'start_quiz'
     });
   };
 
