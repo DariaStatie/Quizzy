@@ -7,17 +7,25 @@ import {
   SafeAreaView,
   ScrollView,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import socket from '../socket';
 
 export default function SelectSubjectScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const [selectedSubject, setSelectedSubject] = useState(null);
+
+  const roomId = route.params?.roomId || null;
 
   const subjects = ['Istorie', 'Biologie', 'Geografie', 'Matematică', 'Română'];
 
   const handleContinue = () => {
     if (selectedSubject) {
-      navigation.navigate('SelectDifficulty', { subject: selectedSubject });
+      socket.emit('select_subject', { roomId, subject: selectedSubject });
+      navigation.navigate('SelectDifficulty', {
+        subject: selectedSubject,
+        roomId,
+      });
     }
   };
 
@@ -59,29 +67,11 @@ export default function SelectSubjectScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#f8f1ff',
-  },
-  container: {
-    padding: 20,
-    paddingBottom: 40,
-    flexGrow: 1,
-  },
-  backButton: {
-    marginBottom: 10,
-  },
-  backText: {
-    fontSize: 16,
-    color: '#9333ea',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#6b21a8',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
+  safe: { flex: 1, backgroundColor: '#f8f1ff' },
+  container: { padding: 20, paddingBottom: 40, flexGrow: 1 },
+  backButton: { marginBottom: 10 },
+  backText: { fontSize: 16, color: '#9333ea' },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#6b21a8', textAlign: 'center', marginBottom: 30 },
   subjectButton: {
     backgroundColor: '#fff',
     borderColor: '#9333ea',
@@ -91,13 +81,8 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     alignItems: 'center',
   },
-  selectedButton: {
-    backgroundColor: '#e9d5ff',
-  },
-  subjectText: {
-    fontSize: 18,
-    color: '#111827',
-  },
+  selectedButton: { backgroundColor: '#e9d5ff' },
+  subjectText: { fontSize: 18, color: '#111827' },
   continueButton: {
     backgroundColor: '#9333ea',
     padding: 15,
@@ -105,12 +90,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 30,
   },
-  continueText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  disabledButton: {
-    backgroundColor: '#ccc',
-  },
+  continueText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  disabledButton: { backgroundColor: '#ccc' },
 });

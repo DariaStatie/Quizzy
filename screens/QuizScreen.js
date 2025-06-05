@@ -9,11 +9,12 @@ import {
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import socket from '../socket';
 
 export default function QuizScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { subject, difficulty } = route.params;
+  const { subject, difficulty, isMultiplayer = false, roomId = null } = route.params;
 
   const [questions, setQuestions] = useState([]);
   const [current, setCurrent] = useState(0);
@@ -22,6 +23,7 @@ export default function QuizScreen() {
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(30);
   const [incorrectAnswers, setIncorrectAnswers] = useState([]);
+  const [opponentAnswered, setOpponentAnswered] = useState(null);
 
   const timerRef = useRef();
 
@@ -70,6 +72,18 @@ export default function QuizScreen() {
     return () => clearInterval(timerRef.current);
   }, [current, questions]);
 
+  useEffect(() => {
+    if (!isMultiplayer || !roomId) return;
+
+    socket.on('opponent_answered', ({ answer, questionIndex }) => {
+      if (questionIndex === current) setOpponentAnswered(answer);
+    });
+
+    return () => {
+      socket.off('opponent_answered');
+    };
+  }, [current, isMultiplayer, roomId]);
+
   const shuffleArray = (arr) => arr.sort(() => Math.random() - 0.5);
 
   const handleAnswer = (index) => {
@@ -86,6 +100,14 @@ export default function QuizScreen() {
       timedOut: false,
     };
 
+    if (isMultiplayer && roomId) {
+      socket.emit('answer', {
+        roomId,
+        answer: index,
+        questionIndex: current,
+      });
+    }
+
     if (isCorrect) {
       const newScore = score + 1;
       setScore(newScore);
@@ -97,6 +119,7 @@ export default function QuizScreen() {
 
   const handleNext = (lastIncorrect = null, latestScore = score) => {
     setSelected(null);
+    setOpponentAnswered(null);
     setTimeLeft(30);
 
     if (lastIncorrect) {
@@ -106,6 +129,10 @@ export default function QuizScreen() {
     if (current + 1 < questions.length) {
       setCurrent(current + 1);
     } else {
+      if (isMultiplayer && roomId) {
+        socket.emit('submit_score', { roomId, score: latestScore });
+      }
+
       navigation.replace('ResultScreen', {
         score: latestScore,
         total: questions.length,
@@ -154,6 +181,11 @@ export default function QuizScreen() {
           disabled={selected !== null}
         >
           <Text style={styles.optionText}>{opt}</Text>
+          {isMultiplayer && opponentAnswered === i && (
+            <Text style={{ fontSize: 12, color: '#6b7280' }}>
+              Adversarul a ales această opțiune
+            </Text>
+          )}
         </TouchableOpacity>
       ))}
     </View>

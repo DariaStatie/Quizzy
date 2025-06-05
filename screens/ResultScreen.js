@@ -1,19 +1,28 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { auth, db } from '../firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import socket from '../socket';
+import ConfettiCannon from 'react-native-confetti-cannon';
 
 export default function ResultScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { score, total, incorrectAnswers } = route.params;
+  const { score, total, incorrectAnswers, roomId } = route.params;
+
+  const [opponentScore, setOpponentScore] = useState(null);
+  const [finalMessage, setFinalMessage] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const saveScore = async () => {
@@ -40,10 +49,51 @@ export default function ResultScreen() {
     saveScore();
   }, []);
 
+  useEffect(() => {
+    if (!roomId) return;
+
+    socket.on('receive_scores', ({ player1, player2 }) => {
+      console.log('✅ Scoruri primite:', player1, player2);
+      const opponent = player1 === score ? player2 : player1;
+      setOpponentScore(opponent);
+
+      if (score > opponent) {
+        setFinalMessage('🏆 Ai câștigat!');
+        setShowConfetti(true);
+      } else if (score < opponent) {
+        setFinalMessage('😞 Ai pierdut!');
+        triggerShake();
+      } else {
+        setFinalMessage('🤝 Egalitate!');
+      }
+    });
+
+    return () => socket.off('receive_scores');
+  }, [roomId]);
+
+  const triggerShake = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -6, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+    ]).start();
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Test finalizat ✅</Text>
       <Text style={styles.scoreText}>Scorul tău: {score} / {total}</Text>
+
+      {roomId && opponentScore !== null && (
+        <>
+          <Text style={styles.scoreText}>Scor adversar: {opponentScore} / {total}</Text>
+          <Animated.Text style={[styles.resultText, { transform: [{ translateX: shakeAnim }] }]}>
+            {finalMessage}
+          </Animated.Text>
+        </>
+      )}
 
       {incorrectAnswers.length > 0 && (
         <View style={styles.incorrectSection}>
@@ -64,8 +114,12 @@ export default function ResultScreen() {
         style={styles.button}
         onPress={() => navigation.replace('Home')}
       >
-        <Text style={styles.buttonText}>Înapoi</Text>
+        <Text style={styles.buttonText}>🏠 Înapoi</Text>
       </TouchableOpacity>
+
+      {showConfetti && (
+        <ConfettiCannon count={120} origin={{ x: 200, y: 0 }} fadeOut />
+      )}
     </ScrollView>
   );
 }
@@ -73,7 +127,7 @@ export default function ResultScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    paddingTop: 80, 
+    paddingTop: 80,
     paddingBottom: 50,
     backgroundColor: '#f8f1ff',
     alignItems: 'center',
@@ -89,7 +143,15 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: '#111827',
     textAlign: 'center',
-    marginBottom: 50, 
+    marginBottom: 10,
+  },
+  resultText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 30,
+    color: '#9333ea',
+    textAlign: 'center',
   },
   incorrectSection: {
     width: '100%',

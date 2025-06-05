@@ -7,25 +7,39 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import socket from '../socket';
 
 export default function SelectDifficultyScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { subject } = route.params;
+  const { subject, roomId } = route.params;
 
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
 
-  // Funcție pentru eliminarea diacriticelor
   const normalize = (text) => {
     return text.normalize("NFD").replace(/[\u0300-\u036f]/g, '');
   };
 
   const handleContinue = () => {
-    if (selectedDifficulty) {
-      const safeDifficulty = normalize(selectedDifficulty);
-      navigation.navigate('Quiz', { subject, difficulty: safeDifficulty });
-    }
-  };
+  if (selectedDifficulty) {
+    const safeDifficulty = normalize(selectedDifficulty);
+
+    // Trimite setările către server
+    socket.emit('set_quiz_settings', {
+      roomId,
+      subject,
+      difficulty: safeDifficulty,
+    });
+
+    navigation.replace('Quiz', {
+      subject,
+      difficulty: safeDifficulty,
+      roomId,
+      isMultiplayer: true,
+    });
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -63,24 +77,9 @@ export default function SelectDifficultyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5ebff',
-    padding: 20,
-    paddingTop: 40,
-  },
-  backText: {
-    color: '#9333ea',
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#6b21a8',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
+  container: { flex: 1, backgroundColor: '#f5ebff', padding: 20, paddingTop: 40 },
+  backText: { color: '#9333ea', fontSize: 16, marginBottom: 20 },
+  title: { fontSize: 22, fontWeight: 'bold', color: '#6b21a8', textAlign: 'center', marginBottom: 20 },
   optionButton: {
     backgroundColor: '#fff',
     borderColor: '#9333ea',
@@ -90,13 +89,8 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     alignItems: 'center',
   },
-  selectedOption: {
-    backgroundColor: '#ede9fe',
-  },
-  optionText: {
-    fontSize: 16,
-    color: '#111827',
-  },
+  selectedOption: { backgroundColor: '#ede9fe' },
+  optionText: { fontSize: 16, color: '#111827' },
   continueButton: {
     backgroundColor: '#9333ea',
     paddingVertical: 14,
@@ -104,12 +98,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 30,
   },
-  continueText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  disabledButton: {
-    backgroundColor: '#d4d4d8',
-  },
+  continueText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  disabledButton: { backgroundColor: '#d4d4d8' },
 });

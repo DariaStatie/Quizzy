@@ -18,6 +18,7 @@ import QuizScreen from './screens/QuizScreen';
 import ScoreScreen from './screens/ScoreScreen';
 import ResultScreen from './screens/ResultScreen';
 import IncorrectAnswersScreen from './screens/IncorrectAnswersScreen';
+import JoinRoomScreen from './screens/JoinRoomScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -61,6 +62,7 @@ export default function App() {
           <Stack.Screen name="ScoreScreen" component={ScoreScreen} />
           <Stack.Screen name="ResultScreen" component={ResultScreen} />
           <Stack.Screen name="IncorrectAnswers" component={IncorrectAnswersScreen} />
+          <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
         </Stack.Navigator>
 
         <Toast />

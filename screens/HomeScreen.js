@@ -1,9 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
+import socket from '../socket'; // 🔗 Importă socket-ul
 
 export default function HomeScreen({ navigation }) {
+  useEffect(() => {
+    socket.on('connect', () => {
+      console.log('🟢 Conectat la serverul de socket:', socket.id);
+    });
+
+    // Cleanup la demontare
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
   const handleLogout = async () => {
     await auth.signOut();
     navigation.reset({
@@ -29,6 +40,14 @@ export default function HomeScreen({ navigation }) {
       >
         <Text style={styles.buttonText}>📊 Scorurile Mele</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.button, styles.secondaryButton]}
+        onPress={() => navigation.navigate('JoinRoom')}
+      >
+        <Text style={styles.buttonText}>⚔️ Competiție</Text>
+      </TouchableOpacity>
+
 
       <TouchableOpacity
         style={[styles.button, styles.logoutButton]}
