@@ -22,6 +22,7 @@ export default function SelectDifficultyScreen() {
     text.normalize("NFD").replace(/[\u0300-\u036f]/g, '');
 
   useEffect(() => {
+    // 🔁 Așteaptă semnalul de start de la server (cu întrebări sincronizate)
     socket.on('start_quiz', ({ subject, difficulty, questions }) => {
       navigation.replace('Quiz', {
         subject,
@@ -42,14 +43,14 @@ export default function SelectDifficultyScreen() {
 
     const safeDifficulty = normalize(selectedDifficulty);
 
-    // 1. Trimitem setările către server
+    // 1. Trimite setările
     socket.emit('set_quiz_settings', {
       roomId,
       subject,
       difficulty: safeDifficulty,
     });
 
-    // 2. Aflăm dacă acest jucător este host
+    // 2. Verifică dacă ești host
     socket.emit('who_is_host', roomId, async (isHost) => {
       if (isHost) {
         const questions = await fetchQuestions(subject, safeDifficulty);
@@ -87,7 +88,7 @@ export default function SelectDifficultyScreen() {
         onPress={handleContinue}
         disabled={!selectedDifficulty}
       >
-        <Text style={styles.continueText}>Continuare</Text>
+        <Text style={styles.continueText}>Continuă</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
