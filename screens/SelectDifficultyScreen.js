@@ -18,7 +18,8 @@ export default function SelectDifficultyScreen() {
 
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
 
-  const normalize = (text) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, '');
+  const normalize = (text) =>
+    text.normalize("NFD").replace(/[\u0300-\u036f]/g, '');
 
   useEffect(() => {
     socket.on('start_quiz', ({ subject, difficulty, questions }) => {
@@ -31,32 +32,41 @@ export default function SelectDifficultyScreen() {
       });
     });
 
-    return () => socket.off('start_quiz');
+    return () => {
+      socket.off('start_quiz');
+    };
   }, [roomId]);
 
   const handleContinue = async () => {
-    if (selectedDifficulty) {
-      const safeDifficulty = normalize(selectedDifficulty);
-      socket.emit('set_quiz_settings', {
-        roomId,
-        subject,
-        difficulty: safeDifficulty,
-      });
+    if (!selectedDifficulty) return;
 
-      const questions = await fetchQuestions(subject, safeDifficulty);
-      socket.emit('set_questions', { roomId, questions });
-    }
+    const safeDifficulty = normalize(selectedDifficulty);
+
+    // 1. Trimitem setările către server
+    socket.emit('set_quiz_settings', {
+      roomId,
+      subject,
+      difficulty: safeDifficulty,
+    });
+
+    // 2. Aflăm dacă acest jucător este host
+    socket.emit('who_is_host', roomId, async (isHost) => {
+      if (isHost) {
+        const questions = await fetchQuestions(subject, safeDifficulty);
+        socket.emit('set_questions', { roomId, questions });
+      }
+    });
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <TouchableOpacity onPress={() => navigation.goBack()}>
-        <Text style={styles.backText}>\u2190 \u00cenapoi</Text>
+        <Text style={styles.backText}>← Înapoi</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>Alege dificultatea:</Text>
 
-      {['U\u0219or', 'Mediu', 'Dificil'].map((level) => (
+      {['Ușor', 'Mediu', 'Dificil'].map((level) => (
         <TouchableOpacity
           key={level}
           style={[
@@ -70,11 +80,14 @@ export default function SelectDifficultyScreen() {
       ))}
 
       <TouchableOpacity
-        style={[styles.continueButton, !selectedDifficulty && styles.disabledButton]}
+        style={[
+          styles.continueButton,
+          !selectedDifficulty && styles.disabledButton,
+        ]}
         onPress={handleContinue}
         disabled={!selectedDifficulty}
       >
-        <Text style={styles.continueText}>Continu\u0103</Text>
+        <Text style={styles.continueText}>Continuare</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -83,16 +96,30 @@ export default function SelectDifficultyScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5ebff', padding: 20, paddingTop: 40 },
   backText: { color: '#9333ea', fontSize: 16, marginBottom: 20 },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#6b21a8', textAlign: 'center', marginBottom: 20 },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#6b21a8',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
   optionButton: {
-    backgroundColor: '#fff', borderColor: '#9333ea', borderWidth: 1,
-    borderRadius: 12, paddingVertical: 14, marginBottom: 15, alignItems: 'center',
+    backgroundColor: '#fff',
+    borderColor: '#9333ea',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginBottom: 15,
+    alignItems: 'center',
   },
   selectedOption: { backgroundColor: '#ede9fe' },
   optionText: { fontSize: 16, color: '#111827' },
   continueButton: {
-    backgroundColor: '#9333ea', paddingVertical: 14, borderRadius: 12,
-    alignItems: 'center', marginTop: 30,
+    backgroundColor: '#9333ea',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 30,
   },
   continueText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   disabledButton: { backgroundColor: '#d4d4d8' },

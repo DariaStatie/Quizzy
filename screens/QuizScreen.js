@@ -34,6 +34,11 @@ export default function QuizScreen() {
   useEffect(() => {
     const loadQuestions = async () => {
       if (isMultiplayer) {
+        if (!multiplayerQuestions || multiplayerQuestions.length === 0) {
+          alert('❗ Eroare: Nu s-au primit întrebările pentru multiplayer.');
+          navigation.goBack();
+          return;
+        }
         setQuestions(multiplayerQuestions);
         setLoading(false);
       } else {
@@ -89,7 +94,9 @@ export default function QuizScreen() {
       if (questionIndex === current) setOpponentAnswered(answer);
     });
 
-    return () => socket.off('opponent_answered');
+    return () => {
+      socket.off('opponent_answered');
+    };
   }, [current, isMultiplayer, roomId]);
 
   const handleAnswer = (index) => {
