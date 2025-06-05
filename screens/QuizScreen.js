@@ -6,15 +6,19 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../firebase';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import socket from '../socket';
 
 export default function QuizScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { subject, difficulty, isMultiplayer = false, roomId = null } = route.params;
+  const {
+    subject,
+    difficulty,
+    isMultiplayer = false,
+    roomId = null,
+    questions: multiplayerQuestions = [],
+  } = route.params;
 
   const [questions, setQuestions] = useState([]);
   const [current, setCurrent] = useState(0);
@@ -28,26 +32,32 @@ export default function QuizScreen() {
   const timerRef = useRef();
 
   useEffect(() => {
-    const fetchQuestions = async () => {
-      try {
-        const q = query(
-          collection(db, 'questions'),
-          where('subject', '==', subject),
-          where('difficulty', '==', difficulty)
-        );
-        const snapshot = await getDocs(q);
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        const shuffled = shuffleArray(data).slice(0, 5);
-        setQuestions(shuffled);
-      } catch (e) {
-        alert('Eroare la încărcarea întrebărilor');
-      } finally {
+    const loadQuestions = async () => {
+      if (isMultiplayer) {
+        setQuestions(multiplayerQuestions);
         setLoading(false);
+      } else {
+        try {
+          const { collection, getDocs, query, where } = await import('firebase/firestore');
+          const { db } = await import('../firebase');
+          const q = query(
+            collection(db, 'questions'),
+            where('subject', '==', subject),
+            where('difficulty', '==', difficulty)
+          );
+          const snapshot = await getDocs(q);
+          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          const shuffled = data.sort(() => Math.random() - 0.5).slice(0, 5);
+          setQuestions(shuffled);
+        } catch (e) {
+          alert('Eroare la încărcarea întrebărilor');
+        } finally {
+          setLoading(false);
+        }
       }
     };
 
-    fetchQuestions();
+    loadQuestions();
   }, []);
 
   useEffect(() => {
@@ -79,19 +89,14 @@ export default function QuizScreen() {
       if (questionIndex === current) setOpponentAnswered(answer);
     });
 
-    return () => {
-      socket.off('opponent_answered');
-    };
+    return () => socket.off('opponent_answered');
   }, [current, isMultiplayer, roomId]);
-
-  const shuffleArray = (arr) => arr.sort(() => Math.random() - 0.5);
 
   const handleAnswer = (index) => {
     if (selected !== null) return;
     setSelected(index);
 
     const isCorrect = index === questions[current].correctAnswer;
-
     clearInterval(timerRef.current);
 
     const currentQuestion = {
@@ -154,9 +159,6 @@ export default function QuizScreen() {
   if (questions.length === 0) {
     return (
       <View style={styles.centered}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backContainer}>
-          <Text style={styles.backText}>← Înapoi</Text>
-        </TouchableOpacity>
         <Text style={styles.title}>Nu există întrebări pentru această selecție.</Text>
       </View>
     );
@@ -204,15 +206,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
     backgroundColor: '#f8f1ff',
-  },
-  backContainer: {
-    position: 'absolute',
-    top: 40,
-    left: 20,
-  },
-  backText: {
-    fontSize: 16,
-    color: '#9333ea',
   },
   question: {
     fontSize: 20,

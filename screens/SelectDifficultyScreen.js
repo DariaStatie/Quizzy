@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import socket from '../socket';
+import { fetchQuestions } from '../utils/questionUtils'; // Funcția care returnează 10 întrebări random din local DB sau backend
 
 export default function SelectDifficultyScreen() {
   const navigation = useNavigation();
@@ -20,26 +21,39 @@ export default function SelectDifficultyScreen() {
     return text.normalize("NFD").replace(/[\u0300-\u036f]/g, '');
   };
 
-  const handleContinue = () => {
-  if (selectedDifficulty) {
-    const safeDifficulty = normalize(selectedDifficulty);
-
-    // Trimite setările către server
-    socket.emit('set_quiz_settings', {
-      roomId,
-      subject,
-      difficulty: safeDifficulty,
+  useEffect(() => {
+    // Când serverul decide că testul începe, navigăm și trimitem exact aceleași întrebări
+    socket.on('start_quiz', ({ subject, difficulty, questions }) => {
+      navigation.replace('Quiz', {
+        subject,
+        difficulty,
+        questions,
+        roomId,
+        isMultiplayer: true,
+      });
     });
 
-    navigation.replace('Quiz', {
-      subject,
-      difficulty: safeDifficulty,
-      roomId,
-      isMultiplayer: true,
-    });
-  }
-};
+    return () => {
+      socket.off('start_quiz');
+    };
+  }, [roomId]);
 
+  const handleContinue = async () => {
+    if (selectedDifficulty) {
+      const safeDifficulty = normalize(selectedDifficulty);
+
+      // Trimitem setările către server
+      socket.emit('set_quiz_settings', {
+        roomId,
+        subject,
+        difficulty: safeDifficulty,
+      });
+
+      // 🔹 DOAR HOSTUL generează întrebările
+      const questions = await fetchQuestions(subject, safeDifficulty);
+      socket.emit('set_questions', { roomId, questions });
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
