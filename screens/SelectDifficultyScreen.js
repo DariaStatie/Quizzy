@@ -25,8 +25,8 @@ export default function SelectDifficultyScreen() {
 
   // 👇 Așteaptă semnalul de la server pentru START QUIZ
   useEffect(() => {
-    socket.on('start_quiz', ({ subject, difficulty, questions }) => {
-      console.log(`✅ Primit start_quiz cu ${questions?.length} întrebări`);
+    socket.on('start_quiz', ({ subject, difficulty, questions, isMultiplayer }) => {
+      console.log(`✅ Primit start_quiz cu ${questions?.length} întrebări, isMultiplayer=${isMultiplayer}`);
       if (questions && questions.length > 0) {
         console.log(`📝 Prima întrebare: ${questions[0].question}`);
       }
@@ -67,13 +67,29 @@ export default function SelectDifficultyScreen() {
           Alert.alert('Așteptați', 'Se încarcă întrebările...');
           
           try {
-            // Host-ul încarcă întrebările
-            const questions = await fetchQuestions(subject, safeDifficulty);
-            console.log(`✅ Încărcate ${questions.length} întrebări, trimit la server`);
+            // MODIFICARE IMPORTANTĂ: folosim o sortare fixă
+            const { collection, getDocs, query, where } = await import('firebase/firestore');
+            const { db } = await import('../firebase');
+            const q = query(
+              collection(db, 'questions'),
+              where('subject', '==', subject),
+              where('difficulty', '==', safeDifficulty)
+            );
+            const snapshot = await getDocs(q);
+            let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // Sortăm întrebările după ID pentru a avea mereu aceeași ordine
+            data = data.sort((a, b) => a.id.localeCompare(b.id)).slice(0, 5);
+            
+            console.log(`✅ Încărcate ${data.length} întrebări, trimit la server`);
+            if (data.length > 0) {
+              console.log(`📝 Prima întrebare: ${data[0].question}`);
+            }
             
             // Trimitem întrebările la server
-            socket.emit('set_questions', { roomId, questions });
+            socket.emit('set_questions', { roomId, questions: data });
             
+            Alert.alert('Pregătit', 'Întrebările au fost încărcate. Așteptați ca celălalt jucător să se conecteze...');
             setIsLoading(false);
           } catch (error) {
             console.error('❌ Eroare la încărcarea întrebărilor:', error);

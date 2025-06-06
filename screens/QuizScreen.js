@@ -21,6 +21,18 @@ export default function QuizScreen() {
     questions: multiplayerQuestions = [],
   } = route.params;
 
+  console.log('⚠️ QUIZ SCREEN PARAMS:', { 
+    subject, 
+    difficulty, 
+    isMultiplayer, 
+    roomId,
+    questionCount: multiplayerQuestions?.length || 0
+  });
+  
+  if (multiplayerQuestions && multiplayerQuestions.length > 0) {
+    console.log('⚠️ FIRST QUESTION:', multiplayerQuestions[0].question);
+  }
+
   const [questions, setQuestions] = useState([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -44,7 +56,8 @@ export default function QuizScreen() {
         console.log(`🎮 Multiplayer: Am primit ${multiplayerQuestions.length} întrebări`);
         console.log(`📝 Prima întrebare: ${multiplayerQuestions[0].question}`);
         
-        setQuestions(multiplayerQuestions);
+        // Fix important: Nu modifica întrebările primite!
+        setQuestions([...multiplayerQuestions]);
         setLoading(false);
       } else {
         try {
