@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import socket from '../socket';
@@ -17,20 +18,25 @@ export default function SelectDifficultyScreen() {
   const { subject, roomId } = route.params;
 
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const normalize = (text) =>
     text.normalize("NFD").replace(/[\u0300-\u036f]/g, '');
 
   // 👇 Așteaptă semnalul de la server pentru START QUIZ
   useEffect(() => {
-    socket.on('start_quiz', ({ subject, difficulty, questions, seed }) => {
+    socket.on('start_quiz', ({ subject, difficulty, questions }) => {
+      console.log(`✅ Primit start_quiz cu ${questions?.length} întrebări`);
+      if (questions && questions.length > 0) {
+        console.log(`📝 Prima întrebare: ${questions[0].question}`);
+      }
+      
       navigation.replace('Quiz', {
         subject,
         difficulty,
         questions,
         roomId,
         isMultiplayer: true,
-        seed
       });
     });
 
@@ -40,38 +46,59 @@ export default function SelectDifficultyScreen() {
   }, [roomId]);
 
   const handleContinue = async () => {
-    if (!selectedDifficulty) return;
-
+    if (!selectedDifficulty || isLoading) return;
+    
+    setIsLoading(true);
     const safeDifficulty = normalize(selectedDifficulty);
 
-    // 1. Trimite setările către server
-    socket.emit('set_quiz_settings', {
-      roomId,
-      subject,
-      difficulty: safeDifficulty,
-    });
+    try {
+      // 1. Trimite setările către server
+      socket.emit('set_quiz_settings', {
+        roomId,
+        subject,
+        difficulty: safeDifficulty,
+      });
 
-    // 2. Întreabă dacă utilizatorul este host
-    socket.emit('who_is_host', roomId, async (isHost) => {
-      if (isHost) {
-        // Generăm un seed bazat pe timestamp pentru a asigura consistența întrebărilor
-        const seed = Date.now();
-        const questions = await fetchQuestions(subject, safeDifficulty, true, seed);
+      // 2. Întreabă dacă utilizatorul este host
+      socket.emit('who_is_host', roomId, async (isHost) => {
+        console.log(`🔍 Este host? ${isHost}`);
         
-        // Trimitem întrebările ȘI seedul la server
-        socket.emit('set_questions', { roomId, questions, seed });
-        
-        console.log('✅ Host: Am trimis întrebările și seed-ul:', seed);
-      } else {
-        console.log('✅ Guest: Aștept întrebările de la host');
-      }
-      // ❗ Nu navigăm spre Quiz aici – așteptăm evenimentul 'start_quiz'
-    });
+        if (isHost) {
+          Alert.alert('Așteptați', 'Se încarcă întrebările...');
+          
+          try {
+            // Host-ul încarcă întrebările
+            const questions = await fetchQuestions(subject, safeDifficulty);
+            console.log(`✅ Încărcate ${questions.length} întrebări, trimit la server`);
+            
+            // Trimitem întrebările la server
+            socket.emit('set_questions', { roomId, questions });
+            
+            setIsLoading(false);
+          } catch (error) {
+            console.error('❌ Eroare la încărcarea întrebărilor:', error);
+            Alert.alert('Eroare', 'Nu s-au putut încărca întrebările.');
+            setIsLoading(false);
+          }
+        } else {
+          // Guest-ul doar marchează că e gata
+          console.log('📱 Guest: Trimit ready_to_start');
+          socket.emit('ready_to_start', { roomId });
+          
+          Alert.alert('Așteptați', 'Se așteaptă ca host-ul să aleagă setările și să înceapă jocul...');
+          setIsLoading(false);
+        }
+      });
+    } catch (error) {
+      console.error('❌ Eroare:', error);
+      Alert.alert('Eroare', 'A apărut o eroare la comunicarea cu serverul.');
+      setIsLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
+      <TouchableOpacity onPress={() => navigation.goBack()} disabled={isLoading}>
         <Text style={styles.backText}>← Înapoi</Text>
       </TouchableOpacity>
 
@@ -85,6 +112,7 @@ export default function SelectDifficultyScreen() {
             selectedDifficulty === level && styles.selectedOption,
           ]}
           onPress={() => setSelectedDifficulty(level)}
+          disabled={isLoading}
         >
           <Text style={styles.optionText}>{level}</Text>
         </TouchableOpacity>
@@ -93,12 +121,14 @@ export default function SelectDifficultyScreen() {
       <TouchableOpacity
         style={[
           styles.continueButton,
-          !selectedDifficulty && styles.disabledButton,
+          (!selectedDifficulty || isLoading) && styles.disabledButton,
         ]}
         onPress={handleContinue}
-        disabled={!selectedDifficulty}
+        disabled={!selectedDifficulty || isLoading}
       >
-        <Text style={styles.continueText}>Continuă</Text>
+        <Text style={styles.continueText}>
+          {isLoading ? 'Se încarcă...' : 'Continuă'}
+        </Text>
       </TouchableOpacity>
     </SafeAreaView>
   );

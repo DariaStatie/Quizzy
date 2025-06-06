@@ -2,41 +2,30 @@
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 
-// Helper function for seeded random (will produce the same sequence for the same seed)
-const seededRandom = (seed) => {
-  const x = Math.sin(seed) * 10000;
-  return x - Math.floor(x);
-};
-
-export const fetchQuestions = async (subject, difficulty, isMultiplayer = false, seed = null) => {
-  const q = query(
-    collection(db, 'questions'),
-    where('subject', '==', subject),
-    where('difficulty', '==', difficulty)
-  );
-  const snapshot = await getDocs(q);
-  const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-  let shuffled;
-  
-  if (isMultiplayer && seed !== null) {
-    // Use seeded shuffling for multiplayer to ensure consistent order
-    shuffled = [...data];
-    let currentIndex = shuffled.length;
+export const fetchQuestions = async (subject, difficulty) => {
+  try {
+    console.log(`🔍 Fetching questions for ${subject} / ${difficulty}`);
     
-    // Fisher-Yates shuffle with seeded random
-    while (currentIndex > 0) {
-      const randomIndex = Math.floor(seededRandom(seed + currentIndex) * currentIndex);
-      currentIndex--;
-      
-      // Swap elements
-      [shuffled[currentIndex], shuffled[randomIndex]] = 
-      [shuffled[randomIndex], shuffled[currentIndex]];
-    }
-  } else {
-    // Regular random shuffle for single player
-    shuffled = data.sort(() => Math.random() - 0.5);
+    const q = query(
+      collection(db, 'questions'),
+      where('subject', '==', subject),
+      where('difficulty', '==', difficulty)
+    );
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    console.log(`📚 Found ${data.length} questions in database`);
+    
+    // Amestecare fixă pentru a evita probleme
+    const shuffled = [...data]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .slice(0, 5);
+    
+    console.log(`🎲 Returning ${shuffled.length} questions`);
+    
+    return shuffled;
+  } catch (error) {
+    console.error('❌ Error fetching questions:', error);
+    return [];
   }
-  
-  return shuffled.slice(0, 5);
 };
