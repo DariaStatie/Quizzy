@@ -23,13 +23,14 @@ export default function SelectDifficultyScreen() {
 
   // 👇 Așteaptă semnalul de la server pentru START QUIZ
   useEffect(() => {
-    socket.on('start_quiz', ({ subject, difficulty, questions }) => {
+    socket.on('start_quiz', ({ subject, difficulty, questions, seed }) => {
       navigation.replace('Quiz', {
         subject,
         difficulty,
         questions,
         roomId,
         isMultiplayer: true,
+        seed
       });
     });
 
@@ -53,8 +54,16 @@ export default function SelectDifficultyScreen() {
     // 2. Întreabă dacă utilizatorul este host
     socket.emit('who_is_host', roomId, async (isHost) => {
       if (isHost) {
-        const questions = await fetchQuestions(subject, safeDifficulty);
-        socket.emit('set_questions', { roomId, questions });
+        // Generăm un seed bazat pe timestamp pentru a asigura consistența întrebărilor
+        const seed = Date.now();
+        const questions = await fetchQuestions(subject, safeDifficulty, true, seed);
+        
+        // Trimitem întrebările ȘI seedul la server
+        socket.emit('set_questions', { roomId, questions, seed });
+        
+        console.log('✅ Host: Am trimis întrebările și seed-ul:', seed);
+      } else {
+        console.log('✅ Guest: Aștept întrebările de la host');
       }
       // ❗ Nu navigăm spre Quiz aici – așteptăm evenimentul 'start_quiz'
     });
