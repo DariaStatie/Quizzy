@@ -12,23 +12,31 @@ import { auth, db } from '../firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import socket from '../socket';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import LottieView from 'lottie-react-native';
 
 export default function ResultScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { score, total, incorrectAnswers, roomId } = route.params;
 
-  const [opponentScore, setOpponentScore] = useState(null);
-  const [finalMessage, setFinalMessage] = useState('');
-  const [showConfetti, setShowConfetti] = useState(false);
+  // ✅ Adăugăm fallback = [] dacă undefined
+  const {
+    score,
+    total,
+    incorrectAnswers = [],
+    roomId,
+    opponentScore: paramOpponentScore,
+    winMessage,
+  } = route.params ?? {};
 
+  const [opponentScore, setOpponentScore] = useState(paramOpponentScore || null);
+  const [finalMessage, setFinalMessage] = useState(winMessage || '');
+  const [showConfetti, setShowConfetti] = useState(winMessage?.includes('câștigat'));
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const saveScore = async () => {
       const user = auth.currentUser;
       if (!user) return;
-
       try {
         await addDoc(collection(db, 'scores'), {
           uid: user.uid,
@@ -45,18 +53,14 @@ export default function ResultScreen() {
         console.log('Eroare la salvarea scorului:', error);
       }
     };
-
     saveScore();
   }, []);
 
   useEffect(() => {
-    if (!roomId) return;
-
+    if (!roomId || paramOpponentScore !== null) return;
     socket.on('receive_scores', ({ player1, player2 }) => {
-      console.log('✅ Scoruri primite:', player1, player2);
       const opponent = player1 === score ? player2 : player1;
       setOpponentScore(opponent);
-
       if (score > opponent) {
         setFinalMessage('🏆 Ai câștigat!');
         setShowConfetti(true);
@@ -67,9 +71,8 @@ export default function ResultScreen() {
         setFinalMessage('🤝 Egalitate!');
       }
     });
-
     return () => socket.off('receive_scores');
-  }, [roomId]);
+  }, [roomId, paramOpponentScore, score]);
 
   const triggerShake = () => {
     Animated.sequence([
@@ -95,6 +98,15 @@ export default function ResultScreen() {
         </>
       )}
 
+      {finalMessage.includes('câștigat') && (
+        <LottieView
+          source={require('../assets/medal_star.json')}
+          autoPlay
+          loop={false}
+          style={{ width: 180, height: 180, marginBottom: 20 }}
+        />
+      )}
+
       {incorrectAnswers.length > 0 && (
         <View style={styles.incorrectSection}>
           <Text style={styles.subtitle}>Întrebări greșite:</Text>
@@ -102,9 +114,7 @@ export default function ResultScreen() {
             <View key={idx} style={styles.wrongBox}>
               <Text style={styles.qtext}>❌ {q.question}</Text>
               <Text style={styles.ctext}>✅ Răspuns corect: {q.correctAnswer}</Text>
-              {q.timedOut && (
-                <Text style={styles.timeoutNote}>⏱ Timpul a expirat</Text>
-              )}
+              {q.timedOut && <Text style={styles.timeoutNote}>⏱ Timpul a expirat</Text>}
             </View>
           ))}
         </View>

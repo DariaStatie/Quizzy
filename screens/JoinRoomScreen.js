@@ -17,9 +17,15 @@ export default function JoinRoomScreen() {
       setPlayers(roomPlayers);
     });
 
-    socket.on('start_quiz', ({ subject, difficulty }) => {
+    socket.on('start_quiz', ({ subject, difficulty, questions }) => {
       console.log('✅ Start quiz cu setări:', subject, difficulty);
-      navigation.replace('Quiz', { roomId, subject, difficulty });
+      navigation.replace('Quiz', {
+        roomId,
+        subject,
+        difficulty,
+        questions,
+        isMultiplayer: true,
+      });
     });
 
     socket.on('player_left', () => {
@@ -43,7 +49,6 @@ export default function JoinRoomScreen() {
     }
 
     console.log('🚀 Trimitere către server:', trimmedRoom);
-    Alert.alert('Te conectezi la camera', trimmedRoom);
     socket.emit('join_room', trimmedRoom, ({ isCreator, subject, difficulty }) => {
       if (isCreator) {
         navigation.replace('SelectSubject', { roomId: trimmedRoom });

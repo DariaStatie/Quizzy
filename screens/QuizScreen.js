@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import socket from '../socket';
-import { fetchQuestions } from '../utils/questionUtils'; // ✅ import adăugat
+import { fetchQuestions } from '../utils/questionUtils';
 
 export default function QuizScreen() {
   const navigation = useNavigation();
@@ -21,18 +21,6 @@ export default function QuizScreen() {
     roomId = null,
     questions: multiplayerQuestions = [],
   } = route.params;
-
-  console.log('⚠️ QUIZ SCREEN PARAMS:', { 
-    subject, 
-    difficulty, 
-    isMultiplayer, 
-    roomId,
-    questionCount: multiplayerQuestions?.length || 0
-  });
-  
-  if (multiplayerQuestions && multiplayerQuestions.length > 0) {
-    console.log('⚠️ FIRST QUESTION:', multiplayerQuestions[0].question);
-  }
 
   const [questions, setQuestions] = useState([]);
   const [current, setCurrent] = useState(0);
@@ -53,24 +41,17 @@ export default function QuizScreen() {
           navigation.goBack();
           return;
         }
-
-        console.log(`🎮 Multiplayer: Am primit ${multiplayerQuestions.length} întrebări`);
-        console.log(`📝 Prima întrebare: ${multiplayerQuestions[0].question}`);
-
         setQuestions([...multiplayerQuestions]);
         setLoading(false);
       } else {
-        // ✅ SINGLE PLAYER - folosim fetchQuestions
         try {
           const data = await fetchQuestions(subject, difficulty);
           if (!data || data.length === 0) {
             Alert.alert('Eroare', 'Nu s-au găsit întrebări.');
             return;
           }
-          console.log(`📦 Încărcate ${data.length} întrebări pentru single player`);
           setQuestions(data);
         } catch (e) {
-          console.error('❌ Eroare la încărcare:', e);
           Alert.alert('Eroare', 'Eroare la încărcarea întrebărilor');
         } finally {
           setLoading(false);
@@ -115,6 +96,35 @@ export default function QuizScreen() {
     };
   }, [current, isMultiplayer, roomId]);
 
+  useEffect(() => {
+    if (!isMultiplayer || !roomId) return;
+
+    socket.on('receive_scores', ({ player1, player2 }) => {
+      const myScore = score;
+      const opponentScore = (myScore === player1) ? player2 : player1;
+
+      const didWin = myScore > opponentScore;
+      const message = myScore === opponentScore
+        ? "🤝 Egalitate! Amândoi ați fost la înălțime!"
+        : didWin
+          ? "🎉 Ai câștigat! Felicitări!"
+          : "😔 Ai pierdut de data asta. Mai încearcă!";
+
+      navigation.replace('ResultScreen', {
+        score: myScore,
+        total: questions.length,
+        incorrectAnswers,
+        roomId,
+        opponentScore,
+        winMessage: message,
+      });
+    });
+
+    return () => {
+      socket.off('receive_scores');
+    };
+  }, [score, isMultiplayer, roomId]);
+
   const handleAnswer = (index) => {
     if (selected !== null) return;
     setSelected(index);
@@ -150,8 +160,12 @@ export default function QuizScreen() {
     setOpponentAnswered(null);
     setTimeLeft(30);
 
+    const finalIncorrects = lastIncorrect
+      ? [...incorrectAnswers, lastIncorrect]
+      : incorrectAnswers;
+
     if (lastIncorrect) {
-      setIncorrectAnswers(prev => [...prev, lastIncorrect]);
+      setIncorrectAnswers(finalIncorrects);
     }
 
     if (current + 1 < questions.length) {
@@ -159,17 +173,16 @@ export default function QuizScreen() {
     } else {
       if (isMultiplayer && roomId) {
         socket.emit('submit_score', { roomId, score: latestScore });
-        console.log(`📊 Quiz finalizat. Scor final: ${latestScore}`);
+      } else {
+        navigation.replace('ResultScreen', {
+          score: latestScore,
+          total: questions.length,
+          incorrectAnswers: finalIncorrects ?? [],
+          roomId: null,
+          opponentScore: null,
+          winMessage: '',
+        });
       }
-
-      navigation.replace('ResultScreen', {
-        score: latestScore,
-        total: questions.length,
-        incorrectAnswers: lastIncorrect
-          ? [...incorrectAnswers, lastIncorrect]
-          : incorrectAnswers,
-        roomId: isMultiplayer ? roomId : null,
-      });
     }
   };
 
@@ -186,7 +199,7 @@ export default function QuizScreen() {
     return (
       <View style={styles.centered}>
         <Text style={styles.title}>Nu există întrebări pentru această selecție.</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
@@ -201,13 +214,13 @@ export default function QuizScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.timer}>⏳ {timeLeft}s</Text>
-      
+
       {isMultiplayer && (
         <Text style={styles.multiplayer}>
           Multiplayer • Întrebarea {current + 1}/{questions.length}
         </Text>
       )}
-      
+
       <Text style={styles.question}>{question.question}</Text>
 
       {question.options.map((opt, i) => (
