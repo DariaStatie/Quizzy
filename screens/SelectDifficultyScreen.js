@@ -1,4 +1,3 @@
-// ✅ SelectDifficultyScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -15,7 +14,7 @@ import { fetchQuestions } from '../utils/questionUtils';
 export default function SelectDifficultyScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { subject, roomId } = route.params;
+  const { subject, roomId = null } = route.params || {};
 
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,14 +22,16 @@ export default function SelectDifficultyScreen() {
   const normalize = (text) =>
     text.normalize("NFD").replace(/[\u0300-\u036f]/g, '');
 
-  // 👇 Așteaptă semnalul de la server pentru START QUIZ
+  // 🎮 Multiplayer: ascultă start_quiz
   useEffect(() => {
+    if (!roomId) return;
+
     socket.on('start_quiz', ({ subject, difficulty, questions, isMultiplayer }) => {
       console.log(`✅ Primit start_quiz cu ${questions?.length} întrebări, isMultiplayer=${isMultiplayer}`);
-      if (questions && questions.length > 0) {
+      if (questions?.length > 0) {
         console.log(`📝 Prima întrebare: ${questions[0].question}`);
       }
-      
+
       navigation.replace('Quiz', {
         subject,
         difficulty,
@@ -47,60 +48,71 @@ export default function SelectDifficultyScreen() {
 
   const handleContinue = async () => {
     if (!selectedDifficulty || isLoading) return;
-    
+
     setIsLoading(true);
     const safeDifficulty = normalize(selectedDifficulty);
 
+    if (!roomId) {
+      // ✅ Mod SINGLE PLAYER
+      try {
+        const questions = await fetchQuestions(subject, safeDifficulty);
+        if (!questions || questions.length === 0) {
+          Alert.alert('Eroare', 'Nu s-au găsit întrebări pentru selecția aleasă.');
+          return;
+        }
+
+        navigation.replace('Quiz', {
+          subject,
+          difficulty: safeDifficulty,
+          questions,
+          isMultiplayer: false,
+        });
+      } catch (error) {
+        console.error('❌ Eroare la fetchQuestions:', error);
+        Alert.alert('Eroare', 'Nu s-au putut încărca întrebările.');
+      } finally {
+        setIsLoading(false);
+      }
+
+      return;
+    }
+
+    // ✅ Mod MULTIPLAYER
     try {
-      // 1. Trimite setările către server
       socket.emit('set_quiz_settings', {
         roomId,
         subject,
         difficulty: safeDifficulty,
       });
 
-      // 2. Întreabă dacă utilizatorul este host
       socket.emit('who_is_host', roomId, async (isHost) => {
         console.log(`🔍 Este host? ${isHost}`);
-        
+
         if (isHost) {
           Alert.alert('Așteptați', 'Se încarcă întrebările...');
-          
+
           try {
-            // MODIFICARE IMPORTANTĂ: folosim o sortare fixă
-            const { collection, getDocs, query, where } = await import('firebase/firestore');
-            const { db } = await import('../firebase');
-            const q = query(
-              collection(db, 'questions'),
-              where('subject', '==', subject),
-              where('difficulty', '==', safeDifficulty)
-            );
-            const snapshot = await getDocs(q);
-            let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
-            // Sortăm întrebările după ID pentru a avea mereu aceeași ordine
-            data = data.sort((a, b) => a.id.localeCompare(b.id)).slice(0, 5);
-            
-            console.log(`✅ Încărcate ${data.length} întrebări, trimit la server`);
-            if (data.length > 0) {
-              console.log(`📝 Prima întrebare: ${data[0].question}`);
+            const questions = await fetchQuestions(subject, safeDifficulty);
+
+            console.log(`✅ Încărcate ${questions.length} întrebări, trimit la server`);
+            if (questions.length > 0) {
+              console.log(`📝 Prima întrebare: ${questions[0].question}`);
             }
-            
-            // Trimitem întrebările la server
-            socket.emit('set_questions', { roomId, questions: data });
-            
+
+            socket.emit('set_questions', { roomId, questions });
+
             Alert.alert('Pregătit', 'Întrebările au fost încărcate. Așteptați ca celălalt jucător să se conecteze...');
-            setIsLoading(false);
           } catch (error) {
             console.error('❌ Eroare la încărcarea întrebărilor:', error);
             Alert.alert('Eroare', 'Nu s-au putut încărca întrebările.');
+          } finally {
             setIsLoading(false);
           }
         } else {
-          // Guest-ul doar marchează că e gata
+          // 👇 guest-ul nu încarcă nimic, doar trimite ready
           console.log('📱 Guest: Trimit ready_to_start');
           socket.emit('ready_to_start', { roomId });
-          
+
           Alert.alert('Așteptați', 'Se așteaptă ca host-ul să aleagă setările și să înceapă jocul...');
           setIsLoading(false);
         }

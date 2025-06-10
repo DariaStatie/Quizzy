@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import socket from '../socket';
+import { fetchQuestions } from '../utils/questionUtils'; // ✅ import adăugat
 
 export default function QuizScreen() {
   const navigation = useNavigation();
@@ -52,27 +53,24 @@ export default function QuizScreen() {
           navigation.goBack();
           return;
         }
-        
+
         console.log(`🎮 Multiplayer: Am primit ${multiplayerQuestions.length} întrebări`);
         console.log(`📝 Prima întrebare: ${multiplayerQuestions[0].question}`);
-        
-        // Fix important: Nu modifica întrebările primite!
+
         setQuestions([...multiplayerQuestions]);
         setLoading(false);
       } else {
+        // ✅ SINGLE PLAYER - folosim fetchQuestions
         try {
-          const { collection, getDocs, query, where } = await import('firebase/firestore');
-          const { db } = await import('../firebase');
-          const q = query(
-            collection(db, 'questions'),
-            where('subject', '==', subject),
-            where('difficulty', '==', difficulty)
-          );
-          const snapshot = await getDocs(q);
-          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          const shuffled = data.sort(() => Math.random() - 0.5).slice(0, 5);
-          setQuestions(shuffled);
+          const data = await fetchQuestions(subject, difficulty);
+          if (!data || data.length === 0) {
+            Alert.alert('Eroare', 'Nu s-au găsit întrebări.');
+            return;
+          }
+          console.log(`📦 Încărcate ${data.length} întrebări pentru single player`);
+          setQuestions(data);
         } catch (e) {
+          console.error('❌ Eroare la încărcare:', e);
           Alert.alert('Eroare', 'Eroare la încărcarea întrebărilor');
         } finally {
           setLoading(false);
