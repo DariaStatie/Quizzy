@@ -96,7 +96,7 @@ export default function QuizScreen() {
     };
   }, [current, isMultiplayer, roomId]);
 
-  useEffect(() => {
+    useEffect(() => {
     if (!isMultiplayer || !roomId) return;
 
     socket.on('receive_scores', ({ player1, player2 }) => {
@@ -113,7 +113,7 @@ export default function QuizScreen() {
       navigation.replace('ResultScreen', {
         score: myScore,
         total: questions.length,
-        incorrectAnswers,
+        incorrectAnswers, // ✅ transmis corect
         roomId,
         opponentScore,
         winMessage: message,
@@ -123,7 +123,8 @@ export default function QuizScreen() {
     return () => {
       socket.off('receive_scores');
     };
-  }, [score, isMultiplayer, roomId]);
+  }, [score, incorrectAnswers, isMultiplayer, roomId]);
+
 
   const handleAnswer = (index) => {
     if (selected !== null) return;
